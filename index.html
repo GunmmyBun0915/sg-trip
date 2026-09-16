@@ -397,6 +397,13 @@ select.fal-field{appearance:none;padding-right:28px;cursor:pointer;
 .sec__title{font-family:var(--fal-display);font-size:20px;font-weight:300;letter-spacing:-.018em;line-height:1.3}
 .sec__title b{font-weight:700}
 .sec__note{font-size:12px;color:var(--fal-content-subtle);margin-left:auto;text-align:right;font-family:var(--fal-mono);letter-spacing:-.01em}
+/* 可折叠区块：区块头变按钮 + 右侧 chevron */
+.sec--fold > .sec__head{width:100%;background:none;border:0;cursor:pointer;padding:0;align-items:center;color:inherit;font:inherit}
+.sec--fold > .sec__head:focus-visible{outline:none;box-shadow:var(--fal-focus);border-radius:var(--fal-r)}
+.sec__chev{width:18px;height:18px;flex:none;margin-left:auto;color:var(--fal-content-subtle);transition:transform var(--fal-t)}
+.sec--fold.is-collapsed > .sec__head{margin-bottom:0}
+.sec--fold.is-collapsed .sec__chev{transform:rotate(-90deg)}
+.sec--fold.is-collapsed > .sec__wrap{display:none}
 
 /* ---------- 顶栏 ---------- */
 .bar{position:sticky;top:0;z-index:var(--fal-z-bar);background:var(--fal-surface);border-bottom:1px solid var(--fal-stroke-strong);
@@ -591,6 +598,14 @@ a.stop__card:hover .stop__name .icon-sm{color:var(--fal-primary)}
 .foot b{color:var(--fal-content-light);font-weight:600}
 
 .chip-book{color:var(--fal-warning)}
+
+/* 逐日行程里的参与人小标（who tag） */
+.stop__people{font-family:var(--fal-mono);font-size:11px;color:var(--fal-content-subtle)}
+/* 总览预览地图：地点图例 */
+.maplegend .lg--day i{width:16px;height:3px;border-radius:2px}
+.maphouse{width:13px;height:13px;flex:none;vertical-align:-2px;color:var(--fal-content)}
+.mapfoot{padding:0 16px 12px;background:var(--fal-surface-light);font-family:var(--fal-mono);font-size:11px;color:var(--fal-content-subtle);line-height:1.5;letter-spacing:-.01em}
+
 </style>
 </head>
 <body>
@@ -614,6 +629,7 @@ a.stop__card:hover .stop__name .icon-sm{color:var(--fal-primary)}
 <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8.5 8.5M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></symbol>
 <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1 0 4 2 2 0 0 1-2 2H6a2 2 0 0 1-2-2 2 2 0 0 0 0-4 2 2 0 0 1 0-4z"/><path d="M14 6v12"/></symbol>
 <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 6M17 19a5.5 5.5 0 0 0-2.5-4.6"/></symbol>
+<symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
 </defs></svg>
 
 <!-- 顶栏 ------------------------------------------------------------------- -->
@@ -643,53 +659,79 @@ a.stop__card:hover .stop__name .icon-sm{color:var(--fal-primary)}
     </div>
   </section>
 
-  <!-- 行程总览地图 -->
-  <section class="sec" aria-labelledby="mapTitle">
-    <div class="sec__head"><h2 class="sec__title" id="mapTitle">行程<b>总览</b></h2><span class="sec__note">从哪到哪 · 每晚住哪</span></div>
-    <div class="mapcard" id="mapCard"></div>
+  <!-- 行程总览地图（可折叠 · 点节点跳到当天） -->
+  <section class="sec sec--fold" id="sec-map" aria-labelledby="mapTitle">
+    <button class="sec__head" type="button" aria-expanded="true" aria-controls="wrap-map">
+      <h2 class="sec__title" id="mapTitle">行程<b>总览</b></h2><span class="sec__note">相对位置示意 · 不按比例</span>
+      <svg class="sec__chev icon" aria-hidden="true"><use href="#i-chevron"/></svg>
+    </button>
+    <div class="sec__wrap" id="wrap-map"><div class="mapcard" id="mapCard"></div></div>
   </section>
 
-  <!-- 风险提示 -->
-  <section class="sec" aria-labelledby="riskTitle">
-    <div class="sec__head"><h2 class="sec__title" id="riskTitle">先看<b>这几条</b></h2><span class="sec__note">冲突 / 硬约束</span></div>
-    <div class="risks" id="risks"></div>
-  </section>
-
-  <!-- 航班 -->
-  <section class="sec" aria-labelledby="flTitle">
-    <div class="sec__head"><h2 class="sec__title" id="flTitle">航班 <b>4 人</b></h2><span class="sec__note" id="flNote"></span></div>
-    <div class="cardgrid cardgrid--2" id="flights"></div>
-  </section>
-
-  <!-- 酒店 -->
-  <section class="sec" aria-labelledby="hoTitle">
-    <div class="sec__head"><h2 class="sec__title" id="hoTitle">住宿 <b>3 处</b></h2><span class="sec__note">点「导航」唤起地图</span></div>
-    <div class="cardgrid cardgrid--2" id="hotels"></div>
+  <!-- 逐日行程（重点信息，靠上） -->
+  <section class="sec sec--fold" id="sec-days" aria-labelledby="dyTitle">
+    <button class="sec__head" type="button" aria-expanded="true" aria-controls="wrap-days">
+      <h2 class="sec__title" id="dyTitle">逐日<b>行程</b></h2><span class="sec__note">点地点唤起导航</span>
+      <svg class="sec__chev icon" aria-hidden="true"><use href="#i-chevron"/></svg>
+    </button>
+    <div class="sec__wrap" id="wrap-days">
+      <div class="daytabs"><div class="daytabs__row" id="dayTabs" role="tablist" aria-label="按天查看"></div></div>
+      <div id="dayViews"></div>
+    </div>
   </section>
 
   <!-- 演唱会 -->
-  <section class="sec" aria-labelledby="coTitle">
-    <div class="sec__head"><h2 class="sec__title" id="coTitle">演唱会 <b>安排</b></h2><span class="sec__note">谁去哪场</span></div>
-    <div id="concert"></div>
+  <section class="sec sec--fold" id="sec-concert" aria-labelledby="coTitle">
+    <button class="sec__head" type="button" aria-expanded="true" aria-controls="wrap-concert">
+      <h2 class="sec__title" id="coTitle">演唱会 <b>安排</b></h2><span class="sec__note">谁去哪场</span>
+      <svg class="sec__chev icon" aria-hidden="true"><use href="#i-chevron"/></svg>
+    </button>
+    <div class="sec__wrap" id="wrap-concert"><div id="concert"></div></div>
   </section>
 
-  <!-- 逐日行程 -->
-  <section class="sec" aria-labelledby="dyTitle">
-    <div class="sec__head"><h2 class="sec__title" id="dyTitle">逐日<b>行程</b></h2><span class="sec__note">点地点唤起导航</span></div>
-    <div class="daytabs"><div class="daytabs__row" id="dayTabs" role="tablist" aria-label="按天查看"></div></div>
-    <div id="dayViews"></div>
+  <!-- 航班 -->
+  <section class="sec sec--fold is-collapsed" id="sec-flights" aria-labelledby="flTitle">
+    <button class="sec__head" type="button" aria-expanded="false" aria-controls="wrap-flights">
+      <h2 class="sec__title" id="flTitle">航班 <b>4 人</b></h2><span class="sec__note" id="flNote"></span>
+      <svg class="sec__chev icon" aria-hidden="true"><use href="#i-chevron"/></svg>
+    </button>
+    <div class="sec__wrap" id="wrap-flights"><div class="cardgrid cardgrid--2" id="flights"></div></div>
+  </section>
+
+  <!-- 酒店 -->
+  <section class="sec sec--fold is-collapsed" id="sec-hotels" aria-labelledby="hoTitle">
+    <button class="sec__head" type="button" aria-expanded="false" aria-controls="wrap-hotels">
+      <h2 class="sec__title" id="hoTitle">住宿 <b>3 处</b></h2><span class="sec__note">点「导航」唤起地图</span>
+      <svg class="sec__chev icon" aria-hidden="true"><use href="#i-chevron"/></svg>
+    </button>
+    <div class="sec__wrap" id="wrap-hotels"><div class="cardgrid cardgrid--2" id="hotels"></div></div>
   </section>
 
   <!-- 待办 -->
-  <section class="sec" aria-labelledby="tdTitle">
-    <div class="sec__head"><h2 class="sec__title" id="tdTitle">待办<b>清单</b></h2><span class="sec__note">出发前 / 行程中</span></div>
-    <div class="todos" id="todos"></div>
+  <section class="sec sec--fold is-collapsed" id="sec-todos" aria-labelledby="tdTitle">
+    <button class="sec__head" type="button" aria-expanded="false" aria-controls="wrap-todos">
+      <h2 class="sec__title" id="tdTitle">待办<b>清单</b></h2><span class="sec__note">出发前 / 行程中</span>
+      <svg class="sec__chev icon" aria-hidden="true"><use href="#i-chevron"/></svg>
+    </button>
+    <div class="sec__wrap" id="wrap-todos"><div class="todos" id="todos"></div></div>
   </section>
 
   <!-- 贴士 -->
-  <section class="sec" aria-labelledby="tpTitle">
-    <div class="sec__head"><h2 class="sec__title" id="tpTitle">实用<b>贴士</b></h2></div>
-    <div class="tips" id="tips"></div>
+  <section class="sec sec--fold is-collapsed" id="sec-tips" aria-labelledby="tpTitle">
+    <button class="sec__head" type="button" aria-expanded="false" aria-controls="wrap-tips">
+      <h2 class="sec__title" id="tpTitle">实用<b>贴士</b></h2>
+      <svg class="sec__chev icon" aria-hidden="true"><use href="#i-chevron"/></svg>
+    </button>
+    <div class="sec__wrap" id="wrap-tips"><div class="tips" id="tips"></div></div>
+  </section>
+
+  <!-- 注意事项（原「先看这几条」，移到最底） -->
+  <section class="sec sec--fold is-collapsed" id="sec-risks" aria-labelledby="riskTitle">
+    <button class="sec__head" type="button" aria-expanded="false" aria-controls="wrap-risks">
+      <h2 class="sec__title" id="riskTitle">注意<b>事项</b></h2><span class="sec__note">冲突 · 硬约束</span>
+      <svg class="sec__chev icon" aria-hidden="true"><use href="#i-chevron"/></svg>
+    </button>
+    <div class="sec__wrap" id="wrap-risks"><div class="risks" id="risks"></div></div>
   </section>
 
   <footer class="foot" id="foot"></footer>
@@ -697,7 +739,7 @@ a.stop__card:hover .stop__name .icon-sm{color:var(--fal-primary)}
 
 <script>
 "use strict";
-const DATA = {"meta":{"wordmark":"SG · 2026","title":"新加坡 · 民丹岛","kicker":"THE WEEKND 四人行","dates":"2026.10.01 – 10.05","tagline":"After Hours Til Dawn · Singapore","tzNote":"全程新加坡时间 SGT (UTC+8)。民丹岛用印尼西部时间 WIB (UTC+7)，比新加坡慢 1 小时，页面单独标注，别混算。","primaryTz":"SGT (UTC+8)"},"people":[{"id":"wxy","name":"wxy","note":"本人 · 两场都去"},{"id":"zym","name":"zym","note":"最早到 10/1 · 去 10/2 场"},{"id":"zy","name":"zy","note":"去 10/3 场"},{"id":"xxm","name":"xxm","note":"10/3 00:35 才到"}],"events":[{"at":"2026-10-01T05:30:00+08:00","title":"zym 抵达樟宜 T4","kind":"flight","detail":"CX659 自香港 · 独立办理米酒店入住"},{"at":"2026-10-02T05:30:00+08:00","title":"wxy 抵达樟宜","kind":"flight","detail":"CX659 自香港 T1"},{"at":"2026-10-02T06:10:00+08:00","title":"zy 抵达樟宜","kind":"flight","detail":"SQ857 自深圳宝安"},{"at":"2026-10-02T20:00:00+08:00","title":"The Weeknd · Day 1 开演","kind":"concert","detail":"National Stadium · 门 18:00 · 到场 wxy + zym"},{"at":"2026-10-03T00:35:00+08:00","title":"xxm 抵达樟宜 · 四人到齐","kind":"flight","detail":"SQ835 自上海浦东"},{"at":"2026-10-03T18:00:00+08:00","title":"ITZY〈TUNNEL VISION〉· 到场 xxm","kind":"concert","detail":"Singapore Indoor Stadium · 开演 18:00"},{"at":"2026-10-03T20:00:00+08:00","title":"The Weeknd · Day 2 开演","kind":"concert","detail":"National Stadium · 门 18:00 · 到场 wxy + zy"},{"at":"2026-10-04T15:00:00+08:00","title":"入住 The Residence Bintan","kind":"hotel","detail":"民丹岛 · 渡轮跨境（班次待补）"},{"at":"2026-10-05T12:00:00+07:00","title":"民丹岛退房","kind":"hotel","detail":"WIB · 务必赶上午船回新加坡"},{"at":"2026-10-05T20:05:00+08:00","title":"wxy + zym 返程 CX636","kind":"flight","detail":"樟宜 T4 → 香港"},{"at":"2026-10-05T20:45:00+08:00","title":"zy + xxm 返程 SQ856","kind":"flight","detail":"樟宜 T3 → 深圳宝安"}],"flights":[{"who":"wxy","note":"本人","outCode":"CX659","outDep":"10/2 01:45 · 香港 T1","outArr":"10/2 05:30 · 樟宜","backCode":"CX636","backDep":"10/5 20:05 · 樟宜 T4","backArr":"10/6 00:10 · 香港 T1"},{"who":"zym","note":"最早到","outCode":"CX659","outDep":"10/1 01:45 · 香港 T1","outArr":"10/1 05:30 · 樟宜 T4","backCode":"CX636","backDep":"10/5 20:05 · 樟宜 T4","backArr":"10/6 00:10 · 香港 T1"},{"who":"zy","note":"","outCode":"SQ857","outDep":"10/2 02:05 · 深圳宝安","outArr":"10/2 06:10 · 樟宜","backCode":"SQ856","backDep":"10/5 20:45 · 樟宜 T3","backArr":"10/6 01:00 · 深圳宝安"},{"who":"xxm","note":"最晚到","outCode":"SQ835","outDep":"10/2 19:10 · 上海浦东","outArr":"10/3 00:35 · 樟宜","backCode":"SQ856","backDep":"10/5 20:45 · 樟宜 T3","backArr":"10/6 01:00 · 深圳宝安"}],"flightNote":"时间均为新加坡时间 SGT (UTC+8)。去程各飞各的；返程两组、两个航站楼——wxy+zym 走 T4，zy+xxm 走 T3。","hotels":[{"name":"米酒店 Hotel Mi Bencoolen","guests":"zym + wxy","stay":"10/1 – 10/4 · 共 3 晚 1 间","checkin":"15:00 后入住（zym 05:30 到，需与酒店确认早入住）","map":"https://maps.app.goo.gl/q13KqnrQqbUQzWoJ8?g_st=ic"},{"name":"Hotel Bencoolen","guests":"xxm + zy","stay":"市区期间住宿","checkin":"xxm 10/3 才到，主要供 zy 及 xxm 到后入住","map":"https://maps.app.goo.gl/kCdHai5WVAVQtAcy5?g_st=ic"},{"name":"The Residence Bintan","guests":"全体 4 人","stay":"10/4 – 10/5 · 共 1 晚 · 一卧室花园露台套房 ×2","checkin":"10/4 15:00 后入住 / 10/5 12:00 前退房（WIB, UTC+7）","address":"Kampung Galang Batang RT 005 RW 003, Desa/Kecamatan Gunung Kijang","meals":"10/4 无餐食（自理）；10/5 含 2 份早餐","tz":"WIB (UTC+7)","map":"https://maps.app.goo.gl/fWkqqg8tBrPEsv8w7?g_st=ic"}],"concerts":[{"accent":"navy","tour":"After Hours Til Dawn Tour","title":"The Weeknd","subtitle":"特别嘉宾 Creepy Nuts","venue":"Singapore National Stadium","address":"1 Stadium Drive, Singapore 397629","time":"门 18:00 / 开演 20:00（SGT）· 安检严，提前到","ticketNote":"移动电子票（mobile-only），现场刷——出发前提前装进手机钱包 / App。","map":"https://www.google.com/maps/search/?api=1&query=Singapore%20National%20Stadium","navLabel":"国家体育场导航","shows":[{"date":"10/2 周五","label":"Day 1","who":["wxy","zym"]},{"date":"10/3 周六","label":"Day 2","who":["wxy","zy"]}]},{"accent":"violet","tour":"3RD WORLD TOUR〈TUNNEL VISION〉","title":"ITZY","subtitle":"","venue":"Singapore Indoor Stadium","address":"2 Stadium Walk, Singapore 397691","time":"开演 18:00（SGT）","ticketNote":"移动电子票（mobile-only），现场刷。","map":"https://www.google.com/maps/search/?api=1&query=Singapore%20Indoor%20Stadium","navLabel":"室内体育场导航","shows":[{"date":"10/3 周六","label":"","who":["xxm"]}]}],"days":[{"date":"10.01","weekday":"周四","tz":"SGT","title":"香港 · zym 先抵新加坡","dayNote":"这天新加坡实际只有 zym 一人，节奏轻松。香港侧：wxy 当晚前往香港机场准备 CX659（10/2 01:45 起飞）。","stops":[{"time":"01:45","name":"zym CX659 香港 T1 起飞","category":"交通","note":"夜航"},{"time":"05:30","name":"zym 抵樟宜 T4","category":"交通","note":"→ 独立办理米酒店入住（15:00 前为早到，需与酒店确认早入住）","map":"Changi Airport Terminal 4 Singapore"},{"time":"入住","name":"米酒店 Hotel Mi Bencoolen","category":"酒店","note":"zym 先入住","map":"https://maps.app.goo.gl/q13KqnrQqbUQzWoJ8?g_st=ic"}]},{"date":"10.02","weekday":"周五","tz":"SGT","title":"四人陆续到 · 演唱会 Day 1","dayNote":"xxm 今日尚未抵达。夜航优先睡眠，白天别排满。","stops":[{"time":"05:30","name":"wxy 抵樟宜（CX659）","category":"交通"},{"time":"06:10","name":"zy 抵樟宜（SQ857）","category":"交通"},{"time":"上午","name":"到店放行李 / 入住 → 补觉恢复","category":"酒店","note":"夜航优先睡眠"},{"time":"午后","name":"Chick-fil-A（Bugis+）","category":"吃喝","flags":["booking"],"note":"亚洲首店 · 离米酒店步行可达 · 周一–六 10:00–22:00 · 201 Victoria St #01-19","map":"Chick-fil-A Bugis Plus Singapore"},{"time":"18:00","name":"门开 · The Weeknd @ National Stadium","category":"演唱会","note":"提前去场馆过安检"},{"time":"20:00","name":"开演 · The Weeknd Day 1","category":"演唱会","note":"到场：wxy + zym","map":"https://www.google.com/maps/search/?api=1&query=Singapore%20National%20Stadium"}]},{"date":"10.03","weekday":"周六","tz":"SGT","title":"四人到齐 · 双演唱会之夜","dayNote":"今晚两场演唱会同时开——wxy + zy 去 The Weeknd（国家体育场），xxm 去 ITZY（新加坡室内体育场，两馆相邻，都在 Sports Hub）。⚑ 夜间动物园与今晚冲突，不排——想看动物改白天去 Singapore Zoo / River Wonders（见贴士）。","stops":[{"time":"00:35","name":"xxm 抵樟宜（SQ835）→ 入住","category":"交通","note":"四人到齐"},{"time":"上午","name":"让 xxm 补觉 · 白天只排一块城市活动","category":"其他","note":"别排满"},{"time":"白天","name":"滨海湾 / Gardens by the Bay / 牛车水（任选一块）","category":"景点","note":"傍晚留足交通 + 安检时间。若 10/2 没吃成 Chick-fil-A，可今日白天补（周六营业）","map":"Gardens by the Bay Singapore"},{"time":"18:00","name":"ITZY〈TUNNEL VISION〉演唱会","category":"演唱会","note":"到场：xxm · Singapore Indoor Stadium","map":"https://www.google.com/maps/search/?api=1&query=Singapore%20Indoor%20Stadium"},{"time":"18:00","name":"门开 · The Weeknd @ National Stadium","category":"演唱会","note":"到场：wxy + zy · 提前过安检"},{"time":"20:00","name":"开演 · The Weeknd Day 2","category":"演唱会","note":"到场：wxy + zy","map":"https://www.google.com/maps/search/?api=1&query=Singapore%20National%20Stadium"}]},{"date":"10.04","weekday":"周日","tz":"SGT → WIB","title":"市区退房 → 渡轮跨境去民丹岛","dayNote":"⚠️ 今天是周日，Chick-fil-A 闭店——如还没打卡，只能改 10/2 或 10/3。上岛后进入民丹岛时间 (WIB, UTC+7)。","stops":[{"time":"上午","name":"米酒店 / Hotel Bencoolen 退房","category":"酒店","note":"行李转移"},{"time":"待补","name":"渡轮 Tanah Merah → Bandar Bentan Telani","category":"交通","flags":["booking","placeholder"],"note":"跨境去民丹岛（印尼），两头过关。预留：市区→Tanah Merah 交通 + 值船/过关 + 单程约 55–90 分钟 + 岛上码头→酒店接驳。⚑ 建议提前订船票、留足过关时间。","map":"Tanah Merah Ferry Terminal Singapore"},{"time":"15:00 后","name":"The Residence Bintan 入住","category":"酒店","note":"一卧室花园露台套房 ×2 ·（WIB, UTC+7）","map":"https://maps.app.goo.gl/fWkqqg8tBrPEsv8w7?g_st=ic"},{"time":"晚上","name":"岛上度假村用餐 / 休息","category":"吃喝","note":"10/4 无餐食，需自理"}]},{"date":"10.05","weekday":"周日→跨夜","tz":"WIB → SGT","title":"民丹岛 → 新加坡 → 返程分叉","dayNote":"两组不同航站楼——樟宜 T3 / T4 间有 skytrain / 接驳，别走错。","stops":[{"time":"12:00 前","name":"The Residence Bintan 退房","category":"酒店","note":"（WIB, UTC+7）· 含 2 份早餐"},{"time":"待补","name":"渡轮 Bandar Bentan Telani → Tanah Merah（返程）","category":"交通","flags":["booking","placeholder","warn"],"note":"⚠️ 硬约束：必须坐上午的船回新加坡。最好中午前抵 Tanah Merah，给市区→机场 + 托运留足缓冲。","map":"Bandar Bentan Telani Ferry Terminal Bintan"},{"time":"傍晚","name":"wxy + zym → 樟宜 T4 值机","category":"交通","note":"CX636 20:05 → 10/6 00:10 香港 T1（国际航班建议提前 3h，≈17:00 到 T4）","map":"Changi Airport Terminal 4 Singapore"},{"time":"傍晚","name":"zy + xxm → 樟宜 T3 值机","category":"交通","note":"SQ856 20:45 → 10/6 01:00 深圳宝安","map":"Changi Airport Terminal 3 Singapore"}]}],"todos":[{"text":"SG Arrival Card（SGAC）四人各自在线申报（抵达前 3 天内，即 9/30 后可填）","when":"出发前"},{"text":"把演唱会移动电子票提前装进手机钱包 / App：The Weeknd（wxy/zym/zy）+ ITZY（xxm），均 mobile-only 现场刷","when":"出发前"},{"text":"订民丹岛往返渡轮票（Tanah Merah ⇄ Bandar Bentan Telani），确认班次时间","when":"出发前","flag":"booking"},{"text":"民丹岛为印尼跨境：确认护照有效期、印尼入境要求，带好过关材料","when":"出发前"},{"text":"zym：与米酒店确认 10/1 早到入住（05:30 抵达，早于 15:00 标准入住）","when":"出发前"},{"text":"到齐时间提醒：xxm 10/3 00:35 才到，10/2 演出四人不齐","when":"行程中"},{"text":"返程分航站楼：wxy+zym 走 T4，zy+xxm 走 T3","when":"行程中"},{"text":"10/4 周日 Chick-fil-A 闭店，想吃请在 10/2 或 10/3 白天安排","when":"行程中"},{"text":"民丹岛度假村可能收房间押金（现金 / 信用卡），入住时留意","when":"行程中"}],"tips":[{"icon":"moon","title":"昼夜护眼","text":"页面按你手机的本地时间白天黑夜自动换配色，夜里看不刺眼。右上角可手动切换。"},{"icon":"clock","title":"时区别混算","text":"全站 SGT (UTC+8)。民丹岛用 WIB (UTC+7)，比新加坡慢 1 小时——渡轮 / 酒店时刻以当地标注为准。倒计时按带时区绝对时间算，跨时区打开不会错。"},{"icon":"music","title":"演唱会","text":"门 18:00 / 演 20:00。国家体育场安检严，提前到；散场人多，提前规划回程。"},{"icon":"food","title":"Chick-fil-A","text":"亚洲首店，Bugis+，周日闭店。招牌鸡肉堡 + 华夫薯条 + 新加坡限定辣酱。"},{"icon":"sight","title":"夜间动物园替代","text":"两晚都撞演唱会，想看动物改白天去相邻的 Singapore Zoo / River Wonders，或留到下次。"},{"icon":"ferry","title":"民丹岛","text":"跨境海岛，节奏放松。10/4 晚餐需自理，10/5 含 2 份早餐（加购早餐另计）。度假村可能收房间押金。"},{"icon":"pin","title":"交通缓冲","text":"市区地点点一下用页面内 Google 导航唤起。渡轮日务必预留充足缓冲，别卡点。"}],"risks":[{"level":"high","title":"10/5 返程渡轮是硬约束","text":"必须订上午的船回新加坡，才赶得上傍晚的国际航班（CX636 20:05 / SQ856 20:45）。中午前最好抵 Tanah Merah。"},{"level":"high","title":"返程分两个航站楼","text":"wxy + zym 走樟宜 T4（CX636）；zy + xxm 走樟宜 T3（SQ856）。两组分别提醒，别走错。"},{"level":"mid","title":"xxm 10/3 才到齐","text":"xxm 10/3 00:35 才抵樟宜，10/2 演唱会缺席；四人 10/3 凌晨后才齐。10/2 的活动按 3 人算。"},{"level":"mid","title":"民丹岛慢 1 小时","text":"民丹岛 WIB = UTC+7，比新加坡慢 1 小时。岛上所有时间单独标 (WIB)，别和 SGT 混算。"}],"placeholders":[{"title":"民丹岛去程渡轮（10/4）","text":"Tanah Merah → Bandar Bentan Telani 的日期时间 / 船公司待补。"},{"title":"民丹岛返程渡轮（10/5 上午）","text":"Bandar Bentan Telani → Tanah Merah 待补，硬约束：务必订上午船。"}]};
+const DATA = {"meta":{"wordmark":"SG · 2026","title":"新加坡 · 民丹岛","kicker":"THE WEEKND 四人行","dates":"2026.10.01 – 10.05","tagline":"After Hours Til Dawn · Singapore","tzNote":"全程新加坡时间 SGT (UTC+8)。民丹岛用印尼西部时间 WIB (UTC+7)，比新加坡慢 1 小时，页面单独标注，别混算。","primaryTz":"SGT (UTC+8)"},"people":[{"id":"wxy","name":"wxy","note":"本人 · 两场都去"},{"id":"zym","name":"zym","note":"最早到 · 10/1 环球影城 · 去 10/2 场"},{"id":"zy","name":"zy","note":"去 10/3 场"},{"id":"xxm","name":"xxm","note":"10/3 00:35 才到"}],"events":[{"at":"2026-10-01T05:30:00+08:00","title":"zym 抵达樟宜 T4","kind":"flight","detail":"CX659 自香港 · 独立办理米酒店入住"},{"at":"2026-10-02T05:30:00+08:00","title":"wxy 抵达樟宜","kind":"flight","detail":"CX659 自香港 T1"},{"at":"2026-10-02T06:10:00+08:00","title":"zy 抵达樟宜","kind":"flight","detail":"SQ857 自深圳宝安"},{"at":"2026-10-02T20:00:00+08:00","title":"The Weeknd · Day 1 开演","kind":"concert","detail":"National Stadium · 门 18:00 · 到场 wxy + zym"},{"at":"2026-10-03T00:35:00+08:00","title":"xxm 抵达樟宜 · 四人到齐","kind":"flight","detail":"SQ835 自上海浦东"},{"at":"2026-10-03T18:00:00+08:00","title":"ITZY〈TUNNEL VISION〉· 到场 xxm","kind":"concert","detail":"Singapore Indoor Stadium · 开演 18:00"},{"at":"2026-10-03T20:00:00+08:00","title":"The Weeknd · Day 2 开演","kind":"concert","detail":"National Stadium · 门 18:00 · 到场 wxy + zy"},{"at":"2026-10-04T16:00:00+08:00","title":"15:00 WIB 后入住 The Residence Bintan","kind":"hotel","detail":"民丹岛当地时间（对应新加坡 16:00）· 渡轮班次待补"},{"at":"2026-10-05T12:00:00+07:00","title":"民丹岛退房","kind":"hotel","detail":"WIB · 务必赶上午船回新加坡"},{"at":"2026-10-05T20:05:00+08:00","title":"wxy + zym 返程 CX636","kind":"flight","detail":"樟宜 T4 → 香港"},{"at":"2026-10-05T20:45:00+08:00","title":"zy + xxm 返程 SQ856","kind":"flight","detail":"樟宜 T3 → 深圳宝安"}],"flights":[{"who":"wxy","note":"本人","outCode":"CX659","outDep":"10/2 01:45 · 香港 T1","outArr":"10/2 05:30 · 樟宜","backCode":"CX636","backDep":"10/5 20:05 · 樟宜 T4","backArr":"10/6 00:10 · 香港 T1"},{"who":"zym","note":"最早到","outCode":"CX659","outDep":"10/1 01:45 · 香港 T1","outArr":"10/1 05:30 · 樟宜 T4","backCode":"CX636","backDep":"10/5 20:05 · 樟宜 T4","backArr":"10/6 00:10 · 香港 T1"},{"who":"zy","note":"","outCode":"SQ857","outDep":"10/2 02:05 · 深圳宝安","outArr":"10/2 06:10 · 樟宜","backCode":"SQ856","backDep":"10/5 20:45 · 樟宜 T3","backArr":"10/6 01:00 · 深圳宝安"},{"who":"xxm","note":"最晚到","outCode":"SQ835","outDep":"10/2 19:10 · 上海浦东","outArr":"10/3 00:35 · 樟宜","backCode":"SQ856","backDep":"10/5 20:45 · 樟宜 T3","backArr":"10/6 01:00 · 深圳宝安"}],"flightNote":"时间均为新加坡时间 SGT (UTC+8)。去程各飞各的；返程两组、两个航站楼——wxy+zym 走 T4，zy+xxm 走 T3。","hotels":[{"name":"米酒店 Hotel Mi Bencoolen","guests":"zym + wxy","stay":"10/1 – 10/4 · 共 3 晚 1 间","checkin":"15:00 后入住（zym 05:30 到，需与酒店确认早入住）","map":"https://maps.app.goo.gl/q13KqnrQqbUQzWoJ8?g_st=ic"},{"name":"Hotel Bencoolen","guests":"xxm + zy","stay":"市区期间住宿","checkin":"xxm 10/3 才到，主要供 zy 及 xxm 到后入住","map":"https://maps.app.goo.gl/kCdHai5WVAVQtAcy5?g_st=ic"},{"name":"The Residence Bintan","guests":"全体 4 人","stay":"10/4 – 10/5 · 共 1 晚 · 一卧室花园露台套房 ×2","checkin":"10/4 15:00 后入住 / 10/5 12:00 前退房（WIB, UTC+7）","address":"Kampung Galang Batang RT 005 RW 003, Desa/Kecamatan Gunung Kijang","meals":"10/4 无餐食（自理）；10/5 含 2 份早餐","tz":"WIB (UTC+7)","map":"https://maps.app.goo.gl/fWkqqg8tBrPEsv8w7?g_st=ic"}],"concerts":[{"accent":"navy","tour":"After Hours Til Dawn Tour","title":"The Weeknd","subtitle":"特别嘉宾 Creepy Nuts","venue":"Singapore National Stadium","address":"1 Stadium Drive, Singapore 397629","time":"门 18:00 / 开演 20:00（SGT）· 安检严，提前到","ticketNote":"移动电子票（mobile-only），现场刷——出发前提前装进手机钱包 / App。","map":"https://www.google.com/maps/search/?api=1&query=Singapore%20National%20Stadium","navLabel":"国家体育场导航","shows":[{"date":"10/2 周五","label":"Day 1","who":["wxy","zym"]},{"date":"10/3 周六","label":"Day 2","who":["wxy","zy"]}]},{"accent":"violet","tour":"3RD WORLD TOUR〈TUNNEL VISION〉","title":"ITZY","subtitle":"","venue":"Singapore Indoor Stadium","address":"2 Stadium Walk, Singapore 397691","time":"开演 18:00（SGT）","ticketNote":"移动电子票（mobile-only），现场刷。","map":"https://www.google.com/maps/search/?api=1&query=Singapore%20Indoor%20Stadium","navLabel":"室内体育场导航","shows":[{"date":"10/3 周六","label":"","who":["xxm"]}]}],"days":[{"date":"10.01","weekday":"周四","tz":"SGT","title":"香港 · zym 先抵 · 环球影城","dayNote":"zym 单独在新加坡，安排圣淘沙环球影城一日。其余三人按各自航班出发；wxy 当晚在香港赶 CX659。","stops":[{"time":"01:45","name":"zym CX659 香港 T1 起飞","category":"交通","note":"夜航","who":["zym"],"id":"d1s1"},{"time":"05:30","name":"zym 抵樟宜 T4","category":"交通","note":"zym 独自抵达后前往米酒店；早入住是否可行需与酒店确认。","map":"Changi Airport Terminal 4 Singapore","who":["zym"],"id":"d1s2"},{"time":"早到","name":"zym · 米酒店寄存行李 / 询问早入住","category":"酒店","note":"标准入住为 15:00 后，尚未确认可提前拿房。","map":"https://maps.app.goo.gl/q13KqnrQqbUQzWoJ8?g_st=ic","who":["zym"],"id":"d1s3"},{"time":"上午–傍晚","name":"zym · 环球影城 Universal Studios Singapore","category":"景点","flags":["booking"],"note":"圣淘沙名胜世界。地铁到 HarbourFront 换圣淘沙快线，或直接打车。⚑ 门票提前网上订指定日期票；开园时间以官网当日为准。夜航后视体力，可先小睡再入园。","who":["zym"],"map":"Universal Studios Singapore Sentosa","mapLabel":"环球影城 USS","id":"d1s4"},{"time":"傍晚","name":"zym · 回 Bugis 米酒店入住 / 休息","category":"酒店","note":"环球影城结束后回市区；若未办早入住则此时按标准入住。","who":["zym"],"map":"https://maps.app.goo.gl/q13KqnrQqbUQzWoJ8?g_st=ic","mapLabel":"米酒店","id":"d1s5"},{"time":"晚上","name":"wxy · 前往香港机场","category":"交通","note":"准备 10/2 01:45 起飞的 CX659；蛇口赴香港机场船班尚需核对本人订单。","who":["wxy"],"map":"Hong Kong International Airport Terminal 1","mapLabel":"香港机场 T1","id":"d1s6"}]},{"date":"10.02","weekday":"周五","tz":"SGT","title":"四人陆续到 · 演唱会 Day 1","dayNote":"wxy、zy 清晨抵达后先补觉。晚间 wxy + zym 看 The Weeknd；zy 可独自去滨海湾花园看夜景，xxm 当晚飞往新加坡。","stops":[{"time":"05:30","name":"wxy 抵樟宜（CX659）","category":"交通","who":["wxy"],"id":"d2s1"},{"time":"06:10","name":"zy 抵樟宜（SQ857）","category":"交通","who":["zy"],"id":"d2s2"},{"time":"上午","name":"到店放行李 / 入住 → 补觉恢复","category":"酒店","note":"夜航优先睡眠","who":["wxy","zy"],"id":"d2s3"},{"time":"上午","name":"亚坤 Ya Kun · 早餐（咖椰黄油吐司 + 豆浆 / 咖啡）","category":"吃喝","note":"Bugis 就近有店（也可换 Killiney）；早上开门，睡醒后先垫一顿。亚坤可多来几次。","who":["wxy","zym","zy"],"map":"Ya Kun Kaya Toast Bugis Junction Singapore","mapLabel":"亚坤 · 早餐","id":"d2s10"},{"time":"午后","name":"Chick-fil-A（Bugis+）","category":"吃喝","flags":["booking"],"note":"亚洲首店 · 离米酒店步行可达 · 周一–六 10:00–22:00 · 201 Victoria St #01-19","map":"Chick-fil-A Bugis Plus Singapore","who":["wxy","zym","zy"],"id":"d2s4"},{"time":"午后","name":"Mr Coconut 椰子水 / 一家人甜品（Yat Ka Yan）","category":"吃喝","note":"都在 Bugis / Fortune Centre 一带、离酒店近，逛街随时补。Yat Ka Yan 在 Fortune Centre #02-08。","who":["wxy","zym","zy"],"map":"Yat Ka Yan Fortune Centre Singapore","mapLabel":"椰子水 / 一家人甜品","id":"d2s11"},{"time":"下午至晚间","name":"zy · 滨海湾花园独自行（意向）","category":"景点","note":"本人计划留到晚上看夜景；具体入园项目和时间未定，与 wxy、zym 的演唱会分开安排。","who":["zy"],"map":"Gardens by the Bay Singapore","mapLabel":"滨海湾花园 · 意向","id":"d2s5"},{"time":"18:00","name":"门开 · The Weeknd @ National Stadium","category":"演唱会","note":"提前去场馆过安检","who":["wxy","zym"],"id":"d2s6"},{"time":"20:00","name":"开演 · The Weeknd Day 1","category":"演唱会","note":"到场：wxy + zym","map":"https://www.google.com/maps/search/?api=1&query=Singapore%20National%20Stadium","who":["wxy","zym"],"id":"d2s7"},{"time":"演出后","name":"明辉田鸡粥 Eminent Frog Porridge（可选夜宵）","category":"吃喝","note":"323 Geylang Road · 16:00–04:00 · 有体力再去，不作为必须项目","map":"https://www.google.com/maps/search/?api=1&query=Eminent%20Frog%20Porridge%20323%20Geylang%20Road%20Singapore","who":["wxy","zym"],"id":"d2s8"},{"time":"19:10","name":"xxm · SQ835 上海浦东起飞","category":"交通","note":"10/3 00:35 抵达樟宜。","who":["xxm"],"map":"Shanghai Pudong International Airport","mapLabel":"上海浦东 → 樟宜","id":"d2s9"}]},{"date":"10.03","weekday":"周六","tz":"SGT","title":"四人到齐 · 双演唱会之夜","dayNote":"睡醒后早餐、随意逛；中午分两队吃饭，再会合逛鱼尾狮及市区，逛后吃松发。最迟 17:00 去演唱会，是否更早排队参考 10/2 经验及入场通知。zym 当晚可独自去滨海湾花园。","stops":[{"time":"00:35","name":"xxm · 抵达樟宜 → Hotel Bencoolen","category":"交通","note":"凌晨到店需提前告知酒店。","who":["xxm"],"map":"https://maps.app.goo.gl/kCdHai5WVAVQtAcy5?g_st=ic","mapLabel":"樟宜 → Hotel Bencoolen","id":"d3s1"},{"time":"睡醒后","name":"亚坤 Ya Kun · 早餐（咖椰吐司 + 豆浆 / 咖啡）","category":"吃喝","note":"Bugis 就近（也可换 Killiney）。xxm 先补觉，其他人按各自起床时间，不要求同时出门。","who":["wxy","zym","zy","xxm"],"map":"Ya Kun Kaya Toast Bugis Junction Singapore","mapLabel":"亚坤 · 早餐","id":"d3s2"},{"time":"午餐","name":"xxm + zym · 21 Seafood 吃蟹","category":"吃喝","note":"两人分组午餐；此前地图显示 12:00 开门，出发前复核。地址 212 Hougang St 21，吃完再与另一组联系集合。","who":["xxm","zym"],"map":"21 Seafood 212 Hougang St 21 Singapore","mapLabel":"21 Seafood · 吃蟹","id":"d3s3"},{"time":"午餐","name":"wxy + zy · 另一组午餐","category":"吃喝","note":"具体店未定；海南鸡饭、了凡油鸡饭等保留为候选，吃完再集合。","who":["wxy","zy"],"mapLabel":"分组午餐 · 店待定","id":"d3s4"},{"time":"午饭后","name":"鱼尾狮公园 · 集合游览","category":"景点","note":"群聊明确要去；集合时刻根据两组午餐结束时间商量。","who":["wxy","zym","zy","xxm"],"map":"Merlion Park Singapore","mapLabel":"鱼尾狮 · 会合","id":"d3s5"},{"time":"顺路","name":"旧禧街警察局 / 克拉码头","category":"景点","note":"群聊提出顺路看建筑和逛附近街区；按时间、体力取舍。","who":["wxy","zym","zy","xxm"],"map":"Old Hill Street Police Station Singapore","mapLabel":"旧禧街警察局 · 顺路","id":"d3s6"},{"time":"逛完后","name":"松发肉骨茶 · 下午加餐","category":"吃喝","note":"按群聊安排放在逛街后；具体门店与集合时间待定，吃完去演唱会。","who":["wxy","zym","zy","xxm"],"map":"Song Fa Bak Kut Teh New Bridge Road Singapore","mapLabel":"松发 · 下午加餐","id":"d3s7"},{"time":"最迟 17:00","name":"演唱会组 · 前往 Sports Hub","category":"交通","note":"根据前一天经验与各自入场通知决定是否提前；两场演出分别走对应场馆入口。","who":["wxy","zy","xxm"],"mapLabel":"出发去场馆","id":"d3s8"},{"time":"18:00","name":"xxm · ITZY 开演","category":"演唱会","note":"Singapore Indoor Stadium；散场时间以现场为准。","who":["xxm"],"map":"https://www.google.com/maps/search/?api=1&query=Singapore%20Indoor%20Stadium","mapLabel":"ITZY · 室内体育场","id":"d3s9"},{"time":"18:00","name":"wxy + zy · The Weeknd 开门","category":"演唱会","note":"提前过安检；20:00 开演。","who":["wxy","zy"],"map":"https://www.google.com/maps/search/?api=1&query=Singapore%20National%20Stadium","mapLabel":"The Weeknd · 国家体育场","id":"d3s10"},{"time":"20:00","name":"wxy + zy · The Weeknd 开演","category":"演唱会","note":"到场：wxy + zy。","who":["wxy","zy"],"map":"https://www.google.com/maps/search/?api=1&query=Singapore%20National%20Stadium","mapLabel":"The Weeknd · 开演","id":"d3s11"},{"time":"晚上","name":"zym · 滨海湾花园独自行（可选）","category":"景点","note":"zym 当晚不看演唱会，可按聊天建议独自安排花园及夜景；具体项目未定。","who":["zym"],"map":"Gardens by the Bay Singapore","mapLabel":"滨海湾花园 · 可选","id":"d3s12"},{"time":"睡前","name":"全员 · 收好行李","category":"其他","note":"准备次日早退房、去码头，减少早晨整理时间。","who":["wxy","zym","zy","xxm"],"mapLabel":"收行李 · 次日早出发","id":"d3s13"}]},{"date":"10.04","weekday":"周日","tz":"SGT → WIB","title":"市区退房 → 渡轮跨境去民丹岛","dayNote":"⚠️ 今天是周日，Chick-fil-A 闭店——如还没打卡，只能改 10/2 或 10/3。上岛后进入民丹岛时间 (WIB, UTC+7)。","stops":[{"time":"清早","name":"米酒店 / Hotel Bencoolen 退房","category":"酒店","note":"前晚收好行李，起床后退房出发。","id":"d4s1","who":["wxy","zym","zy","xxm"]},{"time":"07:00 前","name":"全员 · 争取抵达 Tanah Merah 码头","category":"交通","note":"群内计划；不是官方截止时间，最终报到要求以电子船票为准。","who":["wxy","zym","zy","xxm"],"map":"Tanah Merah Ferry Terminal Singapore","mapLabel":"Tanah Merah · 报到","id":"d4s2"},{"time":"08:10（拟）","name":"渡轮 Tanah Merah → Bandar Bentan Telani","category":"交通","flags":["placeholder"],"note":"往返船票已出票；08:10 SGT 是此前选择的去程时间，最终班次需核对电子票。码头和酒店之间的接驳待酒店确认。","map":"Tanah Merah Ferry Terminal Singapore","id":"d4s3","who":["wxy","zym","zy","xxm"]},{"time":"15:00 WIB 后","name":"The Residence Bintan 入住","category":"酒店","note":"一卧室花园露台套房 ×2 · 对应新加坡时间 16:00 ·（WIB, UTC+7）","map":"https://maps.app.goo.gl/fWkqqg8tBrPEsv8w7?g_st=ic","id":"d4s4","who":["wxy","zym","zy","xxm"]},{"time":"晚上","name":"岛上度假村用餐 / 休息","category":"吃喝","note":"10/4 无餐食，需自理","id":"d4s5","who":["wxy","zym","zy","xxm"]}]},{"date":"10.05","weekday":"周一→跨夜","tz":"WIB → SGT","title":"民丹岛 → 新加坡 → 返程分叉","dayNote":"两组不同航站楼——T4 与其他航站楼之间靠免费接驳巴士（非 Skytrain），留足转场时间，别走错。","stops":[{"time":"12:00 前","name":"The Residence Bintan 退房","category":"酒店","note":"（WIB, UTC+7）· 含 2 份早餐","id":"d5s1","who":["wxy","zym","zy","xxm"]},{"time":"待确认","name":"渡轮 Bandar Bentan Telani → Tanah Merah（返程）","category":"交通","flags":["placeholder","warn"],"note":"往返船票已出票，返程准确班次尚未提供。核对电子票 WIB 出发时间、SGT 抵达时间与酒店接驳，按交接计划预留上午返新加坡的缓冲。","map":"Bandar Bentan Telani Ferry Terminal Bintan","id":"d5s2","who":["wxy","zym","zy","xxm"]},{"time":"傍晚","name":"wxy + zym → 樟宜 T4 值机","category":"交通","note":"CX636 20:05 → 10/6 00:10 香港 T1（国际航班建议提前 3h，≈17:00 到 T4）","map":"Changi Airport Terminal 4 Singapore","id":"d5s3","who":["wxy","zym"]},{"time":"傍晚","name":"zy + xxm → 樟宜 T3 值机","category":"交通","note":"SQ856 20:45 → 10/6 01:00 深圳宝安","map":"Changi Airport Terminal 3 Singapore","id":"d5s4","who":["zy","xxm"]}]}],"todos":[{"text":"SG Arrival Card（SGAC）四人各自在线申报（抵达前 3 天内，即 9/30 后可填）","when":"出发前"},{"text":"把演唱会移动电子票提前装进手机钱包 / App：The Weeknd（wxy/zym/zy）+ ITZY（xxm），均 mobile-only 现场刷","when":"出发前"},{"text":"往返船票已出票：核对两程准确班次及 SGT/WIB，并给 The Residence Bintan 发邮件确认接驳、提出连廊房需求（以酒店回复为准）","when":"出发前"},{"text":"民丹岛为印尼跨境：确认护照有效期、印尼入境要求，带好过关材料","when":"出发前"},{"text":"zym：与米酒店确认 10/1 早到入住（05:30 抵达，早于 15:00 标准入住）","when":"出发前"},{"text":"Hotel Bencoolen：告知 xxm 10/3 00:35 抵达樟宜，确认其后凌晨到店的入住安排","when":"出发前"},{"text":"到齐时间提醒：xxm 10/3 00:35 才到，10/2 演出四人不齐","when":"行程中"},{"text":"返程分航站楼：wxy+zym 走 T4，zy+xxm 走 T3","when":"行程中"},{"text":"10/4 周日 Chick-fil-A 闭店，想吃请在 10/2 或 10/3 白天安排","when":"行程中"},{"text":"民丹岛度假村可能收房间押金（现金 / 信用卡），入住时留意","when":"行程中"}],"tips":[{"icon":"moon","title":"昼夜护眼","text":"页面按你手机的本地时间白天黑夜自动换配色，夜里看不刺眼。右上角可手动切换。"},{"icon":"clock","title":"时区别混算","text":"全站 SGT (UTC+8)。民丹岛用 WIB (UTC+7)，比新加坡慢 1 小时——渡轮 / 酒店时刻以当地标注为准。倒计时按带时区绝对时间算，跨时区打开不会错。"},{"icon":"music","title":"演唱会","text":"门 18:00 / 演 20:00。国家体育场安检严，提前到；散场人多，提前规划回程。"},{"icon":"food","title":"Chick-fil-A","text":"亚洲首店，Bugis+，周日闭店。招牌鸡肉堡 + 华夫薯条 + 新加坡限定辣酱。"},{"icon":"sight","title":"夜间动物园替代","text":"两晚都撞演唱会，想看动物改白天去相邻的 Singapore Zoo / River Wonders，或留到下次。"},{"icon":"ferry","title":"民丹岛","text":"跨境海岛，节奏放松。10/4 晚餐需自理，10/5 含 2 份早餐（加购早餐另计）。度假村可能收房间押金。"},{"icon":"food","title":"想吃就吃 · 候选","text":"招牌辣椒蟹：珍宝 JUMBO（Clarke Quay / Riverside 一带，离 10/3 路线近，有空档可安排）。乌节路一带可吃叻沙。田鸡粥 = 明辉（芽笼，夜宵向，已排 10/2 晚）。酒店附近：亚坤 / Killiney 咖椰吐司（早）、Mr Coconut 椰子水、一家人甜品（Yat Ka Yan · Fortune Centre #02-08）、Boost。了凡是油鸡饭 ≠ 海南鸡饭；榴莲按各自口味。营业时间临行复核。"},{"icon":"food","title":"机场饮品与甜点","text":"Mr Coconut、Co+Nut+Ink 为椰子饮品候选；iTEA 榴莲椰子冰沙、KANE MOCHI 为甜点候选。根据所在航站楼和剩余时间选择，先保证值机与安检。"},{"icon":"pin","title":"交通缓冲","text":"市区地点点一下用页面内 Google 导航唤起。渡轮日务必预留充足缓冲，别卡点。"},{"icon":"sight","title":"如切路 / 乌节路","text":"如切路有人想去，但尚未定日期；乌节路仅提到位置。保留为自由活动候选，不视为 zym 10/1 已确定行程。"}],"risks":[{"level":"high","title":"10/5 返程渡轮是时间硬约束","text":"往返船票已出票，但务必确认坐的是上午班次、并留足缓冲——才赶得上傍晚的国际航班（CX636 20:05 / SQ856 20:45）。最好中午前回到 Tanah Merah。"},{"level":"high","title":"返程分两个航站楼","text":"wxy + zym 走樟宜 T4（CX636）；zy + xxm 走樟宜 T3（SQ856）。两组分别提醒，别走错。"},{"level":"mid","title":"xxm 10/3 才到齐","text":"xxm 10/3 00:35 才抵樟宜，10/2 演唱会缺席；四人 10/3 凌晨后才齐。10/2 的活动按 3 人算。"},{"level":"mid","title":"民丹岛慢 1 小时","text":"民丹岛 WIB = UTC+7，比新加坡慢 1 小时。岛上所有时间单独标 (WIB)，别和 SGT 混算。"}],"placeholders":[{"title":"民丹岛去程渡轮（10/4）","text":"船票已出票；此程最终班次尚待核对电子票，保留当地时区与接驳缓冲。"},{"title":"民丹岛返程渡轮（10/5）","text":"船票已出票；此程最终班次尚待核对电子票，保留当地时区与接驳缓冲。"}]};
 const $ = (s, r = document) => r.querySelector(s);
 const el = (t, cls, html) => { const n = document.createElement(t); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -808,56 +850,72 @@ function tick() {
   paintTimer(fmtDelta(left));
 }
 
-/* ---------------------------------------------------------- 总览地图（手绘感 SVG） */
-function renderMap() {
-  // 4 站横向 ribbon：出发 → 新加坡市区(住3晚) → 民丹岛(住1晚) → 返程分叉
-  const svg = `
-  <svg viewBox="0 0 680 300" width="100%" role="img" aria-label="行程路线：出发地飞新加坡市区，渡轮去民丹岛，再回新加坡分头返程">
-    <defs>
-      <marker id="ah" markerWidth="7" markerHeight="7" refX="5" refY="3.2" orient="auto"><path d="M0 0l6 3.2L0 6.4z" fill="currentColor"/></marker>
-    </defs>
-    <!-- 连接腿（略带手绘弧度） -->
-    <g fill="none" stroke-width="3.4" stroke-linecap="round">
-      <path d="M120 118 C 200 92, 250 92, 318 116" stroke="#115EF3" marker-end="url(#ah)" style="color:#115EF3"/>
-      <path d="M406 150 C 470 178, 500 182, 556 156" stroke="#FF9FC4" marker-end="url(#ah)" style="color:#FF9FC4"/>
-      <path d="M556 196 C 500 232, 300 250, 150 224" stroke="#7630F8" stroke-dasharray="2 9" marker-end="url(#ah)" style="color:#7630F8"/>
-    </g>
-    <!-- 腿上的图标 -->
-    <g stroke="#142657" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" opacity=".85">
-      <g transform="translate(210 84) rotate(45)"><use href="#i-plane"/></g>
-      <g transform="translate(474 176)"><use href="#i-ferry"/></g>
-      <g transform="translate(346 232)"><use href="#i-plane"/></g>
-    </g>
-    <!-- 节点 -->
-    ${mapNode(120, 118, "#115EF3", "出发", "香港·深圳·上海", "10/1–10/2 夜航到")}
-    ${mapNode(362, 130, "#1DCBF7", "新加坡 市区", "石叻 · 演唱会", "住 3 晚")}
-    ${mapNode(600, 176, "#FF9FC4", "民丹岛", "跨境海岛 (WIB)", "住 1 晚")}
-    <!-- 返程分叉标注 -->
-    <g font-family="var(--fal-mono)" font-size="11" fill="#142657">
-      <rect x="70" y="238" width="168" height="46" rx="6" fill="#F4F4F5" stroke="#e2e2e6"/>
-      <text x="82" y="256" font-weight="700" fill="#7630F8">10/5 返程分叉</text>
-      <text x="82" y="270" fill="#494950">wxy+zym → 樟宜 T4 → 香港</text>
-      <text x="82" y="281" fill="#494950" font-size="10">zy+xxm → 樟宜 T3 → 深圳</text>
-    </g>
-  </svg>`;
-  $("#mapCard").innerHTML = svg + `<div class="maplegend">
-    <span class="lg"><i style="background:#115EF3"></i>去程 ✈</span>
-    <span class="lg"><i style="background:#FF9FC4"></i>渡轮 ⛴ 民丹岛</span>
-    <span class="lg"><i style="background:#7630F8"></i>返程 ✈</span>
-    <span class="lg">${ic("i-bed","icon-sm")} = 每晚住宿</span>
-  </div>`;
+/* ---------------------------------------------------------- 总览预览地图（相对位置示意：地点图例 + 按天着色路线 + 过夜房子） */
+const DAYCOLORS = { "10/1": "#115EF3", "10/2": "#1DCBF7", "10/3": "#7630F8", "10/4": "#FF9FC4", "10/5": "#F59E0B" };
+const MAP = {
+  places: {
+    changi:    { x: 616, y: 150, label: "樟宜 T3/T4", lp: "l" },
+    tanah:     { x: 574, y: 214, label: "Tanah Merah 码头", lp: "b" },
+    hougang:   { x: 458, y: 96,  label: "Hougang · 吃蟹", lp: "t" },
+    mihotel:   { x: 336, y: 190, label: "米酒店 · Bugis", lp: "l", house: true },
+    kallang:   { x: 442, y: 214, label: "体育场", lp: "b" },
+    gardens:   { x: 420, y: 306, label: "滨海湾花园", lp: "r" },
+    merlion:   { x: 330, y: 312, label: "鱼尾狮 · 滨海湾", lp: "b" },
+    clarke:    { x: 262, y: 258, label: "旧禧街 · 克拉码头", lp: "l" },
+    chinatown: { x: 224, y: 320, label: "牛车水 · 松发", lp: "b" },
+    sentosa:   { x: 300, y: 392, label: "圣淘沙 · 环球影城", lp: "b" },
+    bintan:    { x: 566, y: 396, label: "民丹岛 · 过夜", lp: "r", house: true }
+  },
+  routes: [
+    { day: "10/1", pts: ["changi", "mihotel", "sentosa"] },
+    { day: "10/2", pts: ["changi", "mihotel", "kallang"], extra: [["mihotel", "gardens"]] },
+    { day: "10/3", pts: ["mihotel", "hougang", "merlion", "clarke", "chinatown", "kallang"], extra: [["mihotel", "gardens"]] },
+    { day: "10/4", pts: ["mihotel", "tanah", "bintan"] },
+    { day: "10/5", pts: ["bintan", "tanah", "changi"] }
+  ]
+};
+function mapSmooth(pts) {
+  if (pts.length < 3) return `M ${pts[0].x} ${pts[0].y}` + (pts[1] ? ` L ${pts[1].x} ${pts[1].y}` : "");
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const xc = (pts[i].x + pts[i + 1].x) / 2, yc = (pts[i].y + pts[i + 1].y) / 2;
+    d += ` Q ${pts[i].x} ${pts[i].y} ${xc} ${yc}`;
+  }
+  d += ` L ${pts[pts.length - 1].x} ${pts[pts.length - 1].y}`;
+  return d;
 }
-function mapNode(x, y, color, title, sub, stay) {
-  return `<g>
-    <circle cx="${x}" cy="${y}" r="9" fill="${color}"/>
-    <circle cx="${x}" cy="${y}" r="9" fill="none" stroke="#fff" stroke-width="2.5"/>
-    <text x="${x}" y="${y - 18}" text-anchor="middle" font-family="var(--fal-display)" font-size="15" font-weight="700" fill="#142657" letter-spacing="-.4">${title}</text>
-    <text x="${x}" y="${y + 26}" text-anchor="middle" font-family="var(--fal-mono)" font-size="10.5" fill="#666670">${sub}</text>
-    <g transform="translate(${x - 34} ${y + 34})">
-      <rect width="68" height="18" rx="5" fill="#142657"/>
-      <text x="34" y="12.5" text-anchor="middle" font-family="var(--fal-mono)" font-size="10" font-weight="700" fill="#C8FF3D">${stay}</text>
-    </g>
-  </g>`;
+function renderMap() {
+  const P = MAP.places;
+  const routes = MAP.routes.map(r => {
+    const c = DAYCOLORS[r.day];
+    const main = `<path d="${mapSmooth(r.pts.map(k => P[k]))}" fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`;
+    const extra = (r.extra || []).map(([a, b]) =>
+      `<path d="M ${P[a].x} ${P[a].y} L ${P[b].x} ${P[b].y}" fill="none" stroke="${c}" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="1 7" opacity=".8"/>`).join("");
+    return main + extra;
+  }).join("");
+  const markers = Object.values(P).map(p => {
+    const lp = p.lp || "b";
+    const dx = lp === "l" ? -11 : lp === "r" ? 11 : 0, dy = lp === "t" ? -13 : lp === "b" ? 21 : 4;
+    const anchor = lp === "l" ? "end" : lp === "r" ? "start" : "middle";
+    const marker = p.house
+      ? `<path d="M ${p.x - 7} ${p.y - 1} L ${p.x} ${p.y - 9} L ${p.x + 7} ${p.y - 1} M ${p.x - 5} ${p.y - 2} V ${p.y + 6} H ${p.x + 5} V ${p.y - 2}" fill="var(--fal-surface)" stroke="var(--fal-content)" stroke-width="1.7" stroke-linejoin="round"/>`
+      : `<circle cx="${p.x}" cy="${p.y}" r="5" fill="#FF7A66" stroke="var(--fal-surface)" stroke-width="1.6"/>`;
+    return `${marker}<text x="${p.x + dx}" y="${p.y + dy}" text-anchor="${anchor}" font-family="var(--fal-mono)" font-size="11" fill="var(--fal-content-light)" paint-order="stroke" stroke="var(--fal-surface)" stroke-width="2.6" stroke-linejoin="round">${esc(p.label)}</text>`;
+  }).join("");
+  const svg = `<svg viewBox="0 0 680 440" width="100%" role="img" aria-label="行程相对位置预览：樟宜入境、市区多点、渡轮跨海去民丹岛；路线按天着色，房子标记过夜地点">
+    <ellipse cx="404" cy="214" rx="262" ry="130" fill="var(--fal-surface-sunken)" opacity=".6"/>
+    <ellipse cx="566" cy="396" rx="88" ry="46" fill="var(--fal-surface-sunken)" opacity=".6"/>
+    <text x="34" y="30" font-family="var(--fal-mono)" font-size="11" fill="var(--fal-content-subtle)">西 ←</text>
+    <text x="646" y="30" text-anchor="end" font-family="var(--fal-mono)" font-size="11" fill="var(--fal-content-subtle)">→ 东</text>
+    <text x="340" y="30" text-anchor="middle" font-family="var(--fal-mono)" font-size="11" fill="var(--fal-content-lighter)">樟宜入境 · 市区(Bugis / 体育场 / 滨海湾) · 渡轮跨海去民丹岛</text>
+    <text x="34" y="426" font-family="var(--fal-mono)" font-size="10.5" fill="var(--fal-content-subtle)">境外出发 → 10/1–10/3 陆续抵樟宜</text>
+    ${routes}
+    ${markers}
+  </svg>`;
+  const legendDays = MAP.routes.map(r => `<span class="lg lg--day"><i style="background:${DAYCOLORS[r.day]}"></i>${r.day}</span>`).join("");
+  $("#mapCard").innerHTML = svg + `<div class="maplegend">${legendDays}
+    <span class="lg"><svg class="maphouse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 11 12 4l8 7M6 10v9h12v-9"/></svg>过夜地点</span>
+  </div><div class="mapfoot">房子标记为过夜地点 · 路线颜色按天区分 · 详细导航请展开逐日卡片</div>`;
 }
 
 /* ---------------------------------------------------------- 风险 */
@@ -989,14 +1047,14 @@ function stopHTML(s) {
   const cardTag = href ? "a" : "div";
   const attrs = href ? ` href="${esc(href)}" target="_blank" rel="noopener"` : "";
   const ph = flags.includes("placeholder")
-    ? `<div class="stop__placeholder">⏳ 班次待补 — 用户补齐后替换（改 trip.json 重跑构建）</div>` : "";
+    ? `<div class="stop__placeholder">班次待确认 · 请以电子船票为准</div>` : "";
   return `<div class="stop">
     <div class="stop__time">${esc(s.time || "")}</div>
     <div class="stop__rail">
       <${cardTag} class="stop__card"${attrs}>
         ${motifTile(s)}
         <div class="stop__main">
-          <div class="stop__crow">${catChip(s.category)}${booking}${warn}</div>
+          <div class="stop__crow">${catChip(s.category)}${s.who ? `<span class="stop__people">${esc(s.who.join(" + "))}</span>` : ""}${booking}${warn}</div>
           <div class="stop__name">${nameInner}</div>
           ${s.note ? `<div class="stop__note">${esc(s.note)}</div>` : ""}
           ${ph}
@@ -1072,6 +1130,17 @@ function init() {
   renderTips();
   renderFoot();
   initTheme();
+  initFold();
+}
+/* 区块折叠：区块头点击切换（键盘可用，button 原生支持 Enter/Space） */
+function initFold() {
+  document.querySelectorAll(".sec--fold > .sec__head").forEach(head => {
+    head.addEventListener("click", () => {
+      const sec = head.closest(".sec--fold");
+      const collapsed = sec.classList.toggle("is-collapsed");
+      head.setAttribute("aria-expanded", String(!collapsed));
+    });
+  });
 }
 init();
 </script>
